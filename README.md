@@ -1,45 +1,68 @@
-# Plataforma Donde Jenny
+# 🏢 Plataforma de Gestión, Administración y Contaduría
 
-Este proyecto está dividido en dos partes principales que conviven en este repositorio:
+Sistema integral diseñado para la gestión eficiente de inventario, ventas, deudas y contabilidad, con integración en tiempo real de tasas de cambio.
 
-1. **Frontend**: Aplicación en React + Vite.
-2. **Backend**: API REST en Node.js + Express con base de datos PostgreSQL.
+## 🚀 Características Principales
 
----
+- 📦 **Gestión de Inventario**: Control total de productos, presentaciones y existencias con historial de movimientos.
+- 🛒 **Punto de Venta (POS)**: Carrito de compras intuitivo con búsqueda por nombre o código de barras.
+- 💱 **Equivalencias Monetarias**: Tasas en tiempo real (BCV y Binance P2P) con cálculo automático de promedio.
+- 🧾 **Facturación**: Generación de facturas digitales (PDF/JPG) y registro histórico de ventas.
+- 💳 **Control de Deudas**: Gestión de cuentas por cobrar (deudores) y pagar (proveedores) con historial de abonos.
+- 📊 **Contabilidad**: Análisis visual de ventas mensuales y anuales.
 
-## 🖥 Frontend
+## 🛠️ Tecnologías Utilizadas
 
-Para correr el frontend localmente:
+- **Frontend**: React.js, Vite, Vanilla CSS (Premium Design), Lucide Icons.
+- **Backend**: Node.js, Express.js.
+- **Base de Datos**: PostgreSQL.
+- **APIs/Scraping**: Integración directa con `bcv.org.ve` y `Binance API`.
 
+## ⚙️ Configuración y Ejecución
+
+### 1. Requisitos Previos
+- Node.js instalado.
+- PostgreSQL en ejecución.
+
+### 2. Instalación de Dependencias
+
+Ejecutar en la raíz del proyecto:
 ```bash
-cd frontend
-npm install
-npm run dev
+# Instalar dependencias del Backend
+cd backend && npm install
+
+# Instalar dependencias del Frontend
+cd ../frontend && npm install
 ```
 
-El frontend se levantará por defecto en `http://localhost:5173`. Para más detalles sobre dependencias o estructura, revisar `frontend/package.json`.
+### 3. Base de Datos
+1. Crea una base de datos llamada `yeni_trapiche` en PostgreSQL.
+2. Ejecuta el script de esquema ubicado en: `backend/src/db/schema.sql`.
+3. Configura el archivo `backend/.env` con tus credenciales:
+   ```env
+   DB_USER=tu_usuario
+   DB_PASSWORD=tu_contraseña
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_DATABASE=yeni_trapiche
+   ```
 
----
+### 4. Ejecución
+Para iniciar el proyecto en modo desarrollo, abre dos terminales:
 
-## ⚙️ Backend
-
-Para configurar y correr el backend:
-
+**Terminal 1 (Backend):**
 ```bash
 cd backend
-npm install
-```
-
-Configurar variables de entorno:
-1. Copia `.env.example` a `.env` dentro de `backend/`.
-2. Actualiza `DB_USER` y `DB_PASSWORD` según tu configuración local de PostgreSQL.
-3. Asegúrate de haber creado la base de datos `yeni_trapiche`.
-4. Importa el esquema SQL ubicado en `backend/src/db/schema.sql`.
-
-Correr el servidor:
-
-```bash
 npm run dev
 ```
 
-El servidor arrancará en `http://localhost:3001` con Nodemon (se reiniciará automáticamente al hacer cambios en el código de backend).
+**Terminal 2 (Frontend):**
+```bash
+cd frontend
+npm run dev
+```
+
+La aplicación estará disponible en `http://localhost:5173`.
+
+---
+*Desarrollado con ❤️ para la gestión de Donde Jenny.*
