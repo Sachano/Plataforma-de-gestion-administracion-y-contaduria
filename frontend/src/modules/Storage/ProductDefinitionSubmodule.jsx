@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, Save, PackagePlus, ChevronRight } from 'lucide-react';
+import BarcodeScanner from '../../components/BarcodeScanner';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-componente: fila de un nivel de empaque
@@ -201,8 +202,11 @@ const ProductDefinitionSubmodule = ({ inventory, setInventory }) => {
                     </div>
                     <div>
                         <label>Código de Barras</label>
-                        <input type="text" name="barcode" value={formData.barcode} onChange={handleInput}
-                            placeholder="Escanee o escriba" />
+                        <BarcodeScanner
+                            value={formData.barcode}
+                            onScan={(code) => setFormData(p => ({ ...p, barcode: code }))}
+                            placeholder="Escanee o escriba el código..."
+                        />
                     </div>
                 </div>
 

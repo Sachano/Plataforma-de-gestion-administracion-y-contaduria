@@ -1,6 +1,6 @@
-# Backend - Donde Jenny
+# Backend - Sistema de Gestión
 
-Este es el servidor Node.js/Express para la plataforma de gestión "Donde Jenny".
+Este es el servidor Node.js/Express para el sistema de gestión empresarial.
 Provee una API REST conectada a una base de datos PostgreSQL.
 
 ## Configuración inicial
@@ -13,7 +13,7 @@ Provee una API REST conectada a una base de datos PostgreSQL.
 2. Configurar base de datos:
    - Copia `.env.example` a `.env`
    - Configura tus credenciales (`DB_USER`, `DB_PASSWORD`) de PostgreSQL local.
-   - Crea una base de datos llamada `yeni_trapiche` en PostgreSQL.
+   - Crea una base de datos llamada `mi_empresa` en PostgreSQL.
    - Ejecuta el script SQL `src/db/schema.sql` en tu base de datos para crear las tablas.
 
 3. Correr el servidor:

@@ -1,6 +1,8 @@
-import { useState } from 'react';
-import { ShoppingCart, Search, Plus, X, Users, UserPlus, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ShoppingCart, Search, Plus, X, Users, UserPlus, ChevronDown, Camera } from 'lucide-react';
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import CheckoutOverlay from './CheckoutOverlay';
+import { useGlobalScanner } from '../../hooks/useGlobalScanner';
 
 const CartModule = ({ inventory, onCheckout, onClose, exchangeRates = [], debts = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +22,137 @@ const CartModule = ({ inventory, onCheckout, onClose, exchangeRates = [], debts 
     const [newDebtorName, setNewDebtorName] = useState('');
     const [newDebtorDesc, setNewDebtorDesc] = useState('');
     const [debtorDropdownOpen, setDebtorDropdownOpen] = useState(false);
+
+    // ── Barcode Scanner state ───────────────────────────────────────────────────
+    const [isCameraOn, setIsCameraOn] = useState(false);
+    const [hasCamera, setHasCamera] = useState(true);
+    const videoRef = useRef(null);
+    const searchInputRef = useRef(null);
+    const readerRef = useRef(null);
+    const lastKeyTime = useRef(0);
+    const scannerBuffer = useRef('');
+
+    // Listener Global Físico
+    useGlobalScanner((code) => {
+        setSearchTerm(code);
+        const found = inventory.find(p => p.barcode === code);
+        if (found) {
+            handleSelectProduct(found);
+        }
+    });
+
+    // Cleanup camera on unmount
+    useEffect(() => {
+        return () => {
+            stopCamera();
+        };
+    }, []);
+
+    const stopCamera = () => {
+        if (readerRef.current) {
+            readerRef.current.reset();
+            readerRef.current = null;
+        }
+        if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+        setIsCameraOn(false);
+    };
+
+    const toggleCamera = async () => {
+        if (isCameraOn) {
+            stopCamera();
+        } else {
+            try {
+                const hints = new Map();
+                hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+                    BarcodeFormat.EAN_13,
+                    BarcodeFormat.EAN_8,
+                    BarcodeFormat.UPC_A,
+                    BarcodeFormat.UPC_E,
+                    BarcodeFormat.CODE_128,
+                    BarcodeFormat.CODE_39,
+                    BarcodeFormat.CODE_93,
+                    BarcodeFormat.QR_CODE,
+                    BarcodeFormat.DATA_MATRIX,
+                    BarcodeFormat.ITF
+                ]);
+
+                const reader = new BrowserMultiFormatReader(hints);
+                readerRef.current = reader;
+
+                const devices = await reader.listVideoInputDevices();
+
+                if (devices.length === 0) {
+                    setHasCamera(false);
+                    alert('No se detectó cámara en el dispositivo');
+                    return;
+                }
+
+                const backCamera = devices.find(d =>
+                    d.label.toLowerCase().includes('back') ||
+                    d.label.toLowerCase().includes('trasera') ||
+                    d.label.toLowerCase().includes('rear')
+                );
+                const selectedDeviceId = backCamera ? backCamera.deviceId : devices[0].deviceId;
+
+                await reader.decodeFromVideoDevice(
+                    selectedDeviceId,
+                    videoRef.current,
+                    (result, err) => {
+                        if (result) {
+                            const code = result.getText();
+                            setSearchTerm(code);
+                            stopCamera();
+                            // Auto-select if product found
+                            const found = inventory.find(p => p.barcode === code);
+                            if (found) {
+                                handleSelectProduct(found);
+                            }
+                        }
+                    }
+                );
+
+                setIsCameraOn(true);
+            } catch (err) {
+                console.error('Error al iniciar cámara:', err);
+                alert('Error al acceder a la cámara');
+                setHasCamera(false);
+            }
+        }
+    };
+
+    // Handle external scanner input (works like keyboard)
+    const handleScannerInput = (e) => {
+        const now = Date.now();
+
+        if (now - lastKeyTime.current > 50) {
+            scannerBuffer.current = '';
+        }
+        lastKeyTime.current = now;
+
+        if (e.key === 'Enter') {
+            if (scannerBuffer.current.length > 0) {
+                const code = scannerBuffer.current.trim();
+                setSearchTerm(code);
+
+                // Auto-select if product found
+                const found = inventory.find(p => p.barcode === code);
+                if (found) {
+                    handleSelectProduct(found);
+                }
+            }
+            scannerBuffer.current = '';
+            e.preventDefault();
+            return;
+        }
+
+        if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
+            scannerBuffer.current += e.key;
+        }
+    };
 
     // existing deudores only
     const existingDeudores = debts.filter(d => d.type === 'deudor');
@@ -143,16 +276,95 @@ const CartModule = ({ inventory, onCheckout, onClose, exchangeRates = [], debts 
                 {/* Left Side: Search & Selection */}
                 <div style={{ flex: '1.2', display: 'flex', flexDirection: 'column', gap: '25px', overflowY: 'auto', paddingRight: '10px', paddingBottom: '20px' }}>
 
-                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '15px 20px', borderRadius: '12px', border: '1px solid var(--divider-blue-light)' }}>
-                        <Search size={24} color="var(--divider-blue)" />
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre, marca o escanear código..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ flex: 1, margin: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: '18px' }}
-                            autoFocus
-                        />
+                    {/* Buscador con escáner de código de barras */}
+                    <div style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '15px 20px', borderRadius: '12px', border: '1px solid var(--divider-blue-light)' }}>
+                            <Search size={24} color="var(--divider-blue)" />
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Buscar por nombre, marca o escanear código..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={handleScannerInput}
+                                style={{ flex: 1, margin: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: '18px' }}
+                                autoFocus
+                            />
+                            {hasCamera && (
+                                <button
+                                    type="button"
+                                    onClick={toggleCamera}
+                                    title={isCameraOn ? 'Cerrar cámara' : 'Escanear código de barras'}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: '36px',
+                                        height: '36px',
+                                        border: isCameraOn ? '2px solid #e74c3c' : '1px solid #ddd',
+                                        borderRadius: '8px',
+                                        background: isCameraOn ? '#fef2f2' : 'var(--white)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    {isCameraOn ? <Camera size={18} color="#e74c3c" /> : <Camera size={18} color="var(--divider-blue)" />}
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Vista de cámara */}
+                        {isCameraOn && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                marginTop: '8px',
+                                background: '#000',
+                                borderRadius: '12px',
+                                overflow: 'hidden',
+                                zIndex: 100,
+                                boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '10px 15px',
+                                    background: 'rgba(0,0,0,0.8)',
+                                    color: 'white'
+                                }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 500 }}>
+                                        🎯 Apunte la cámara al código de barras
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={toggleCamera}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: 'white',
+                                            cursor: 'pointer',
+                                            padding: '4px'
+                                        }}
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                                <video
+                                    ref={videoRef}
+                                    style={{
+                                        width: '100%',
+                                        height: '200px',
+                                        objectFit: 'cover'
+                                    }}
+                                    playsInline
+                                    muted
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {searchTerm && !selectedProduct && (

@@ -1,8 +1,10 @@
-import { Home, Package, Receipt, LineChart, ShoppingCart, Landmark } from 'lucide-react';
+import { Home, Package, Receipt, LineChart, ShoppingCart, Landmark, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 // La imagen del logo debe de agregarse manualmente por el usuario en src/assets/logo.jpg
 import logo from '../assets/logo.jpg';
 
-const MainLayout = ({ activeModule, onModuleChange, onCartToggle, children }) => {
+const MainLayout = ({ activeModule, onModuleChange, onCartToggle, children, user }) => {
+    const { logout } = useAuth();
     const navItems = [
         { id: 'home', label: 'Inicio', icon: Home },
         { id: 'storage', label: 'Inventario', icon: Package },
@@ -19,14 +21,14 @@ const MainLayout = ({ activeModule, onModuleChange, onCartToggle, children }) =>
                 <div className="logo-container">
                     <img
                         src={logo}
-                        alt="Donde Jenny Logo"
+                        alt="Logo de la Empresa"
                         onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'block';
                         }}
                     />
                     <div className="logo-placeholder" style={{ display: 'none' }}>
-                        DONDE JENNY
+                        MI EMPRESA
                     </div>
                 </div>
 
@@ -45,6 +47,54 @@ const MainLayout = ({ activeModule, onModuleChange, onCartToggle, children }) =>
                         );
                     })}
                 </nav>
+
+                {/* User Info & Logout */}
+                {user && (
+                    <div style={{
+                        padding: '16px',
+                        borderTop: '1px solid var(--bg-secondary)',
+                        marginTop: 'auto'
+                    }}>
+                        <div style={{
+                            fontSize: '12px',
+                            color: 'var(--text-muted)',
+                            marginBottom: '8px'
+                        }}>
+                            {user.full_name || user.username}
+                            <span style={{
+                                display: 'inline-block',
+                                marginLeft: '8px',
+                                padding: '2px 6px',
+                                backgroundColor: user.role === 'admin' ? 'var(--accent-orange)' : 'var(--divider-blue)',
+                                color: 'white',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                textTransform: 'uppercase'
+                            }}>
+                                {user.role}
+                            </span>
+                        </div>
+                        <button
+                            onClick={logout}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: '8px 12px',
+                                backgroundColor: 'transparent',
+                                border: '1px solid var(--text-muted)',
+                                borderRadius: '6px',
+                                color: 'var(--text-muted)',
+                                cursor: 'pointer',
+                                fontSize: '12px'
+                            }}
+                        >
+                            <LogOut size={16} />
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                )}
             </aside>
 
             {/* Main Content Area */}

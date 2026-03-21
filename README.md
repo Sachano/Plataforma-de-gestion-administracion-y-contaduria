@@ -1,68 +1,188 @@
-# 🏢 Plataforma de Gestión, Administración y Contaduría
+# 🏢 Sistema de Gestión Empresarial - Yeni Trapiche
 
 Sistema integral diseñado para la gestión eficiente de inventario, ventas, deudas y contabilidad, con integración en tiempo real de tasas de cambio.
 
 ## 🚀 Características Principales
 
 - 📦 **Gestión de Inventario**: Control total de productos, presentaciones y existencias con historial de movimientos.
-- 🛒 **Punto de Venta (POS)**: Carrito de compras intuitivo con búsqueda por nombre o código de barras.
+- 🛒 **Punto de Venta (POS)**: Carrito de compras intuitivo con búsqueda por nombre o **código de barras**.
+- 📷 **Escaneo de Códigos**: Escanea códigos de barras desde la cámara del celular o usando un escáner externo.
 - 💱 **Equivalencias Monetarias**: Tasas en tiempo real (BCV y Binance P2P) con cálculo automático de promedio.
 - 🧾 **Facturación**: Generación de facturas digitales (PDF/JPG) y registro histórico de ventas.
 - 💳 **Control de Deudas**: Gestión de cuentas por cobrar (deudores) y pagar (proveedores) con historial de abonos.
 - 📊 **Contabilidad**: Análisis visual de ventas mensuales y anuales.
 
-## 🛠️ Tecnologías Utilizadas
+---
 
-- **Frontend**: React.js, Vite, Vanilla CSS (Premium Design), Lucide Icons.
-- **Backend**: Node.js, Express.js.
-- **Base de Datos**: PostgreSQL.
-- **APIs/Scraping**: Integración directa con `bcv.org.ve` y `Binance API`.
+## 📥 Descargas Directas
 
-## ⚙️ Configuración y Ejecución
+### 🪟 Aplicación de Escritorio (Windows)
 
-### 1. Requisitos Previos
-- Node.js instalado.
-- PostgreSQL en ejecución.
+**Versión: 1.0.0**
 
-### 2. Instalación de Dependencias
+| Archivo | Descripción | Enlace |
+|---------|-------------|--------|
+| `Yeni Trapiche - Gestion Setup.exe` | Instalador para Windows | [Descargar](./backend/dist/) |
 
-Ejecutar en la raíz del proyecto:
+### 📱 Aplicación Móvil (Android)
+
+**Versión: 1.0.0**
+
+| Archivo | Descripción | Enlace |
+|---------|-------------|--------|
+| `app-debug.apk` | APK para Android | [Descargar](./frontend/android/app/build/outputs/apk/debug/) |
+
+> **Nota**: Para instalar el APK en Android, debes habilitar "Instalar de fuentes desconocidas" en la configuración de tu dispositivo.
+
+---
+
+## 🛠️ Instalación y Configuración (Desarrollo)
+
+### Opción 1: Modo Desarrollo (con Node.js)
+
+#### 1. Requisitos Previos
+
+- **Node.js** instalado (versión 18 o superior).
+- **npm** como gestor de paquetes.
+
+#### 2. Instalación
+
 ```bash
 # Instalar dependencias del Backend
-cd backend && npm install
+cd backend
+npm install
 
 # Instalar dependencias del Frontend
-cd ../frontend && npm install
+cd ../frontend
+npm install
 ```
 
-### 3. Base de Datos
-1. Crea una base de datos llamada `yeni_trapiche` en PostgreSQL.
-2. Ejecuta el script de esquema ubicado en: `backend/src/db/schema.sql`.
-3. Configura el archivo `backend/.env` con tus credenciales:
-   ```env
-   DB_USER=tu_usuario
-   DB_PASSWORD=tu_contraseña
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_DATABASE=yeni_trapiche
-   ```
+#### 3. Ejecutar el Sistema
 
-### 4. Ejecución
-Para iniciar el proyecto en modo desarrollo, abre dos terminales:
+**IMPORTANTE**: Debes ejecutar el backend y el frontend en **terminales separadas**.
 
-**Terminal 1 (Backend):**
+**Terminal 1 - Backend:**
 ```bash
 cd backend
 npm run dev
 ```
+El backend se ejecutará en: `http://localhost:3001`
 
-**Terminal 2 (Frontend):**
+**Terminal 2 - Frontend:**
 ```bash
 cd frontend
 npm run dev
 ```
-
-La aplicación estará disponible en `http://localhost:5173`.
+El frontend se ejecutará en: `http://localhost:5173`
 
 ---
-*Desarrollado con ❤️ para la gestión de Donde Jenny.*
+
+### Opción 2: Generar Ejecutables
+
+#### Para Windows (EXE)
+
+```bash
+cd backend
+npm run electron:build
+```
+El archivo EXE se generará en: `backend/dist/`
+
+#### Para Android (APK)
+
+```bash
+cd frontend
+npm run build
+npx cap sync android
+npx cap open android
+```
+Luego en Android Studio, selecciona **Build > Build Bundle(s) / APK(s) > Build APK(s)**
+
+---
+
+## 💾 Base de Datos
+
+La aplicación utiliza **SQLite** para almacenar datos localmente. Ya no necesitas instalar PostgreSQL.
+
+- **Ubicación de la base de datos**: `backend/database.sqlite`
+- **Los datos se guardan automáticamente** al cerrar la aplicación
+- **Puedes hacer respaldo** copiando el archivo `database.sqlite`
+
+---
+
+## 📋 Comandos Rápidos
+
+| Comando | Descripción |
+|---------|-------------|
+| `cd backend && npm run dev` | Iniciar el servidor backend |
+| `cd frontend && npm run dev` | Iniciar el servidor frontend |
+| `cd backend && npm install` | Instalar dependencias del backend |
+| `cd frontend && npm install` | Instalar dependencias del frontend |
+| `cd frontend && npm run build` | Compilar el frontend |
+| `npm run build-app.js` | Generar EXE y APK |
+
+---
+
+## 🔧 Solución de Problemas
+
+### Pantalla en blanco
+1. Verifica que el **backend esté corriendo** en el puerto 3001
+2. Verifica que el **frontend esté corriendo** en el puerto 5173
+3. Limpia la **caché del navegador** (Ctrl+Shift+Delete)
+4. Presiona **F5** para refrescar la página
+
+### Error al generar EXE o APK
+1. Asegúrate de tener **Node.js** instalado
+2. Verifica que las dependencias estén instaladas:
+   ```bash
+   cd backend && npm install
+   cd frontend && npm install
+   ```
+
+### La base de datos no funciona
+1. Elimina el archivo `backend/database.sqlite`
+2. Reinicia el backend: `cd backend && npm run dev`
+
+---
+
+## 👤 Usuarios del Sistema
+
+La plataforma cuenta con un sistema de autenticación:
+
+| Rol | Usuario | Contraseña | Descripción |
+|-----|---------|------------|-------------|
+| **Admin** | `admin` | `admin` | Acceso completo a todas las funcionalidades |
+| **Vendedor** | `user` | `user123` | Puede realizar ventas y añadir productos |
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+├── backend/
+│   ├── src/
+│   │   ├── db.js           # Conexión SQLite
+│   │   ├── index.js        # Servidor Express
+│   │   ├── routes/         # Rutas API
+│   │   └── middleware/    # Middlewares
+│   ├── database.sqlite    # Base de datos local
+│   ├── electron.js        # Entry de Electron
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx         # Componente principal
+│   │   ├── components/    # Componentes (BarcodeScanner)
+│   │   ├── modules/       # Módulos de la app
+│   │   └── context/       # Contextos de React
+│   ├── android/           # Proyecto Android
+│   └── package.json
+├── build-app.js          # Script de build
+└── README.md
+```
+
+---
+
+> **Nota**: Las equivalencias monetarias automáticas están habilitadas por defecto. Solo el usuario **Admin** puede desactivar esta función.
+
+---
+
+*Desarrollado con ❤️ para Yeni Trapiche - Todos los derechos reservados.*

@@ -62,7 +62,7 @@ const HomeModule = ({ invoices = [], inventory = [], exchangeRates = [], greetin
                 soldProductsMap[item.name] = { name: item.name, quantity: 0, revenue: 0, lastSale: inv.timestamp };
             }
             soldProductsMap[item.name].quantity += item.quantity;
-            soldProductsMap[item.name].revenue += item.quantity * item.price;
+            soldProductsMap[item.name].revenue += item.quantity * (item.unitPrice || 0);
             // Mantiene el timestamp de la venta más reciente
             if (new Date(inv.timestamp) > new Date(soldProductsMap[item.name].lastSale)) {
                 soldProductsMap[item.name].lastSale = inv.timestamp;
@@ -96,7 +96,7 @@ const HomeModule = ({ invoices = [], inventory = [], exchangeRates = [], greetin
                         {greeting} 👋
                     </p>
                     <h1 style={{ color: 'var(--divider-blue)', margin: 0, fontSize: '34px', fontWeight: 700, lineHeight: 1.2 }}>
-                        Señorita Jenny
+                        Mi Empresa
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '8px 0 0 0' }}>
                         Aquí tienes el resumen del negocio. Navega en el menú izquierdo para todas las opciones.

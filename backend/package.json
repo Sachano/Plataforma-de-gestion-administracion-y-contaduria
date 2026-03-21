@@ -1,26 +1,81 @@
 {
-  "name": "backend",
+  "name": "yeni-trapiche-gestion",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Sistema de gestión para Yeni Trapiche",
+  "main": "electron.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "electron": "electron .",
+    "electron:build": "electron-builder --win",
+    "build:all": "cd ../frontend && npm run build"
   },
   "keywords": [],
-  "author": "",
+  "author": "Yeni Trapiche",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "axios": "^1.13.6",
+    "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
+    "electron-updater": "^6.8.3",
     "express": "^5.2.1",
-    "pg": "^8.20.0"
+    "express-rate-limit": "^8.3.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.20.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
     "nodemon": "^3.1.14"
+  },
+  "build": {
+    "appId": "com.yenitrapiche.gestion",
+    "productName": "Yeni Trapiche - Gestion",
+    "directories": {
+      "output": "dist-v2"
+    },
+    "files": [
+      "src/**/*",
+      "electron.js",
+      "node_modules/**/*",
+      "package.json",
+      {
+        "from": "../frontend/dist",
+        "to": "frontend-dist",
+        "filter": ["**/*"]
+      }
+    ],
+    "asar": false,
+    "win": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yeni-trapiche",
+        "repo": "gestion-pos"
+      }
+    ]
   }
 }

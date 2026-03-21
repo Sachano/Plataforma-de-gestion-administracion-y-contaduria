@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: donde_jenny_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password123}
+      POSTGRES_DB: ${DB_NAME:-donde_jenny}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/Base de datos.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # Servidor Backend
+  backend:
+    build: ./backend
+    container_name: donde_jenny_backend
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-password123}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-donde_jenny}
+      JWT_SECRET: ${JWT_SECRET:-supersecret}
+    depends_on:
+      - db
+
+  # Cliente Frontend
+  frontend:
+    build: ./frontend
+    container_name: donde_jenny_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

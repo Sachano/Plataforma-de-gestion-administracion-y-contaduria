@@ -1,0 +1,249 @@
+/* ============================================================================
+   Login.css — Estilos de la página de inicio de sesión
+   ============================================================================
+   Usa los colores del sistema (azul oscuro, naranja, crema) para mantener
+   coherencia visual con el resto de la plataforma.
+   ============================================================================ */
+
+/* ── Contenedor principal — cubre toda la pantalla ── */
+.login-container {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Degradado con los azules del sistema (--divider-blue) */
+    background: linear-gradient(135deg, #1a2a50 0%, #2b3a67 40%, #1a2a50 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Efecto de fondo sutil con el naranja del sistema */
+.login-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(240, 165, 0, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.login-container::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -10%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(82, 97, 148, 0.12) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* ── Tarjeta de login ── */
+.login-card {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 44px 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow:
+        0 25px 60px -12px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(240, 165, 0, 0.05);
+    animation: cardFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes cardFadeIn {
+    from { opacity: 0; transform: translateY(24px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Encabezado con logo ── */
+.login-header {
+    text-align: center;
+    margin-bottom: 36px;
+}
+
+.login-logo {
+    width: 80px;
+    height: 80px;
+    /* Degradado naranja del sistema (--accent-orange) */
+    background: linear-gradient(135deg, #f0a500 0%, #e88d14 100%);
+    border-radius: 20px;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(240, 165, 0, 0.3);
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+
+.login-logo:hover {
+    transform: scale(1.05);
+}
+
+.login-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 20px;
+}
+
+.login-header h1 {
+    color: #ffffff;
+    font-size: 1.85rem;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.login-header p {
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 6px;
+    font-size: 0.9rem;
+    font-weight: 400;
+}
+
+/* ── Formulario ── */
+.login-form .form-group {
+    margin-bottom: 22px;
+}
+
+.login-form label {
+    display: block;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+/* ── Input con ícono ── */
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon svg {
+    position: absolute;
+    left: 16px;
+    color: rgba(240, 165, 0, 0.6);
+    transition: color 0.2s;
+    z-index: 1;
+}
+
+.input-with-icon input {
+    width: 100%;
+    padding: 14px 16px 14px 48px;
+    background: rgba(43, 58, 103, 0.4);
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    color: #ffffff;
+    font-size: 0.95rem;
+    transition: all 0.25s ease;
+}
+
+.input-with-icon input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.input-with-icon input:focus {
+    outline: none;
+    border-color: rgba(240, 165, 0, 0.5);
+    box-shadow: 0 0 0 3px rgba(240, 165, 0, 0.12);
+    background: rgba(43, 58, 103, 0.6);
+}
+
+.input-with-icon:focus-within svg {
+    color: #f0a500;
+}
+
+/* ── Botón de login ── */
+.btn-login {
+    width: 100%;
+    padding: 15px;
+    /* Degradado naranja (--accent-orange → --accent-orange-hover) */
+    background: linear-gradient(135deg, #f0a500 0%, #e88d14 100%);
+    color: #1a2a50;
+    border: none;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.25s ease;
+    margin-top: 12px;
+    letter-spacing: 0.02em;
+    box-shadow: 0 4px 16px rgba(240, 165, 0, 0.25);
+}
+
+.btn-login:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e88d14 0%, #d47c0a 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(240, 165, 0, 0.35);
+}
+
+.btn-login:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(240, 165, 0, 0.2);
+}
+
+.btn-login:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ── Mensaje de error ── */
+.login-error {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    padding: 14px 16px;
+    border-radius: 12px;
+    margin-bottom: 22px;
+    font-size: 0.85rem;
+    text-align: center;
+    font-weight: 500;
+    animation: errorShake 0.4s ease;
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+}
+
+/* ── Footer ── */
+.login-footer {
+    margin-top: 32px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.75rem;
+}
+
+/* ── Animación de carga (spinner naranja) ── */
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

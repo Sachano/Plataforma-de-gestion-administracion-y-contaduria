@@ -1,13 +1,34 @@
+/* ============================================================================
+   index.css — Sistema de diseño y estilos globales
+   ============================================================================
+   Este archivo define:
+   - Variables CSS (colores, tipografía)
+   - Estilos base del body y box-sizing
+   - Layout principal (sidebar + contenido)
+   - Componentes reutilizables (cards, botones, inputs)
+   - Estilos del scrollbar
+   ============================================================================ */
+
 :root {
+  /* Colores de fondo */
   --bg-color: #fdfdfd;
   --bg-secondary: #f4f4f9;
+
+  /* Colores de acento (naranja — color principal de la marca) */
   --accent-orange: #f0a500;
   --accent-orange-hover: #e88d14;
+
+  /* Colores de estructura (azul oscuro — usado en sidebar, encabezados) */
   --divider-blue: #2b3a67;
   --divider-blue-light: #526194;
+
+  /* Colores de texto */
   --text-main: #333333;
   --text-muted: #666666;
+
+  /* Colores de utilidad */
   --white: #ffffff;
+  --border-color: #e0e0e0;  /* Usado en bordes de tablas, inputs, separadores */
 }
 
 body {

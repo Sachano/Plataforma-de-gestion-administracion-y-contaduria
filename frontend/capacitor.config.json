@@ -1,0 +1,9 @@
+{
+  "appId": "com.yenitrapiche.gestion",
+  "appName": "Yeni Trapiche - Gestion",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -5,7 +5,12 @@ const MonetaryEquivalenciesModule = ({
     exchangeRates,
     setExchangeRates,
     autoRatesEnabled,
-    setAutoRatesEnabled
+    setAutoRatesEnabled,
+    onAdd,
+    onUpdate,
+    onDelete,
+    onSaveAll,
+    user
 }) => {
     // Mode states: 'view', 'edit', 'delete', 'add'
     const [mode, setMode] = useState('view');
@@ -27,7 +32,7 @@ const MonetaryEquivalenciesModule = ({
         setMode('edit');
     };
 
-    const handleEditSave = () => {
+    const handleEditSave = async () => {
         const updatedRates = exchangeRates.map(rate => {
             // Promedio is always computed.
             if (rate.isComputed) return rate;
@@ -46,6 +51,12 @@ const MonetaryEquivalenciesModule = ({
             }
             return updatedRate;
         });
+
+        // Save all rates to backend if callback provided
+        if (onSaveAll) {
+            await onSaveAll(updatedRates);
+        }
+
         setExchangeRates(updatedRates);
         setMode('view');
     };
@@ -59,7 +70,7 @@ const MonetaryEquivalenciesModule = ({
         setMode('add');
     };
 
-    const handleAddSave = () => {
+    const handleAddSave = async () => {
         if (!newCurrency.name.trim() || !newCurrency.value) return;
 
         const newRate = {
@@ -70,7 +81,15 @@ const MonetaryEquivalenciesModule = ({
             group: 'custom'
         };
 
-        setExchangeRates([...exchangeRates, newRate]);
+        // Usar el callback onAdd que ya actualiza el estado en App.jsx
+        // No debemos hacer setExchangeRates aquí también, porque eso duplicaría la moneda
+        if (onAdd) {
+            await onAdd(newRate);
+        } else {
+            // Fallback: si no hay callback, actualizar localmente
+            setExchangeRates(prev => [...prev, newRate]);
+        }
+
         setMode('view');
     };
 
@@ -91,7 +110,17 @@ const MonetaryEquivalenciesModule = ({
         }
     };
 
-    const handleDeleteConfirm = () => {
+    const handleDeleteConfirm = async () => {
+        // Delete each selected rate via API if callback provided
+        if (onDelete) {
+            for (const id of currenciesToDelete) {
+                const rate = exchangeRates.find(r => r.id === id);
+                if (rate && rate.isDeletable) {
+                    await onDelete(id);
+                }
+            }
+        }
+
         const remainingRates = exchangeRates.filter(rate => !currenciesToDelete.includes(rate.id));
         setExchangeRates(remainingRates);
         setMode('view');
@@ -151,12 +180,15 @@ const MonetaryEquivalenciesModule = ({
                         position: 'relative',
                         display: 'inline-block',
                         width: '50px',
-                        height: '28px'
+                        height: '28px',
+                        cursor: user?.role === 'admin' ? 'pointer' : 'not-allowed',
+                        opacity: user?.role === 'admin' ? 1 : 0.6
                     }}>
                         <input
                             type="checkbox"
                             checked={autoRatesEnabled}
-                            onChange={(e) => setAutoRatesEnabled(e.target.checked)}
+                            onChange={(e) => user?.role === 'admin' && setAutoRatesEnabled(e.target.checked)}
+                            disabled={user?.role !== 'admin'}
                             style={{ opacity: 0, width: 0, height: 0 }}
                         />
                         <span style={{

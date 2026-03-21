@@ -110,8 +110,45 @@ const CheckoutOverlay = ({ invoice, onDownload, onClose }) => {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: '30px' }}>
-                <button className="btn" onClick={onDownload} style={{ background: '#28a745', fontSize: '18px', padding: '15px 30px' }}>
-                    <Download size={24} style={{ marginRight: '10px' }} /> Descargar Factura
+                <button 
+                    className="btn" 
+                    onClick={() => {
+                        if (window.electron && window.electron.printReceipt) {
+                            const html = `
+                                <div style="font-family: monospace; text-align: center; font-size: 14px; width: 100%; color: black;">
+                                    <h2 style="margin: 5px 0;">YENI TRAPICHE</h2>
+                                    <h4 style="margin: 5px 0; border-bottom: 1px dashed black;">Ticket N: ${invoice.id}</h4>
+                                    <p style="margin: 5px 0; font-size: 11px;">Fecha: ${new Date(invoice.timestamp).toLocaleString()}</p>
+                                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px;">
+                                        ${invoice.items.map(item => `
+                                            <tr>
+                                                <td style="text-align: left; padding: 2px 0;">${item.quantity}x ${item.name.substring(0, 15)}</td>
+                                                <td style="text-align: right; padding: 2px 0;">$${(item.quantity * item.unitPrice).toFixed(2)}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </table>
+                                    <hr style="border: 1px dashed black; margin: 8px 0;" />
+                                    <h3 style="margin: 5px 0;">A Pagar: $${totalUSD.toFixed(2)}</h3>
+                                    ${promedioRate > 0 ? `<p style="margin: 5px 0; font-weight: bold;">Bs. ${fmtBs(totalPromedio)}</p>` : ''}
+                                    <hr style="border: 1px dashed black; margin: 8px 0;" />
+                                    <p style="font-size: 11px; margin-top: 10px;">¡Gracias por su compra!</p>
+                                </div>
+                            `;
+                            window.electron.printReceipt(html);
+                            
+                            // Listeners opcionales (cuidado con los leaks al re-renderizar)
+                            if (!window.printListenersAdded) {
+                                window.electron.onPrintFailure((_, err) => alert('Error al imprimir: ' + err));
+                                window.printListenersAdded = true;
+                            }
+                        } else {
+                            onDownload(); // Fallback para navegador web normal
+                        }
+                    }} 
+                    style={{ background: '#28a745', fontSize: '18px', padding: '15px 30px' }}
+                >
+                    <Download size={24} style={{ marginRight: '10px' }} /> 
+                    {window.electron ? 'Imprimir Factura' : 'Descargar Factura'}
                 </button>
                 <button className="btn btn-accent" onClick={onClose} style={{ fontSize: '18px', padding: '15px 30px' }}>
                     <LogOut size={24} style={{ marginRight: '10px' }} /> Salir
