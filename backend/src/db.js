@@ -240,7 +240,25 @@ async function createTables(db) {
             note TEXT
         );
     `);
+
+    // Inyectar cuentas requeridas automáticamente al momento de la instalación para primer inicio
+    const { get : sqliteGet } = db;
+    const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+    if (userCount && userCount.count === 0) {
+        const bcrypt = require('bcryptjs');
+        console.log('📦 Inicializando base de datos local: Creando cuentas maestras requeridas...');
+        
+        // Contraseñas pre-cifradas rápidas ("admin", "user123")
+        const salt = await bcrypt.genSalt(10);
+        const adminHash = await bcrypt.hash('admin', salt);
+        const sellerHash = await bcrypt.hash('user123', salt);
+        
+        await db.run('INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)', ['admin', adminHash, 'Administrador', 'admin']);
+        await db.run('INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)', ['user', sellerHash, 'Vendedor', 'seller']);
+        console.log('✅ Credenciales generadas. Admin: admin / admin');
+    }
 }
+
 
 // Iniciar pasiva (warm-up)
 getDb().catch(console.error);
