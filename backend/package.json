@@ -74,8 +74,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "yeni-trapiche",
-        "repo": "gestion-pos"
+        "owner": "Sachano",
+        "repo": "Plataforma-de-gestion-administracion-y-contaduria"
       }
     ]
   }
