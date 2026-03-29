@@ -87,8 +87,19 @@ function translateQuery(text, originalParams = []) {
         }
     }
 
-    // 2. Reemplazar "$1", "$2" restantes por "?" (formato SQLite)
-    sqliteQuery = sqliteQuery.replace(/\$\d+/g, '?');
+    // 2. Reemplazar "$1", "$2", etc. restantes por "?" (formato SQLite)
+    // usamos un loop explícito en vez de regex para evitar problemas en distintos entornos
+    let pos = 0;
+    while ((pos = sqliteQuery.indexOf('$', pos)) !== -1) {
+        let end = pos + 1;
+        while (end < sqliteQuery.length && sqliteQuery[end] >= '0' && sqliteQuery[end] <= '9') end++;
+        if (end > pos + 1) {
+            sqliteQuery = sqliteQuery.slice(0, pos) + '?' + sqliteQuery.slice(end);
+            pos++; // avanza más allá del '?' recién insertado
+        } else {
+            pos++; // '$' sin número, lo ignoramos
+        }
+    }
 
     return { sqliteQuery, flatParams };
 }
@@ -97,13 +108,17 @@ async function executeQuery(text, originalParams = []) {
     const db = await getDb();
     const { sqliteQuery, flatParams } = translateQuery(text, originalParams);
 
-    const isReturning = sqliteQuery.toUpperCase().includes('RETURNING');
+    const upperQuery = sqliteQuery.trim().toUpperCase();
+    const isSelect = upperQuery.startsWith('SELECT');
+    const isReturning = upperQuery.includes('RETURNING');
 
     try {
-        if (isReturning) {
+        if (isSelect || isReturning) {
+            // Todos los SELECTs y queries con RETURNING devuelven filas
             const rows = await db.all(sqliteQuery, flatParams);
             return { rows, rowCount: rows.length };
         }
+        // INSERT, UPDATE, DELETE sin RETURNING
         const result = await db.run(sqliteQuery, flatParams);
         return { rows: [], rowCount: result.changes, lastInsertRowid: result.lastID };
     } catch (err) {
