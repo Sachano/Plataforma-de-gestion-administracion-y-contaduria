@@ -148,13 +148,51 @@ app.whenReady().then(() => {
     // Iniciar búsqueda silenciosa de actualizaciones (Auto-Updater)
     try {
         const { autoUpdater } = require('electron-updater');
-        // Configuración básica (se lee desde el "publish" de package.json)
-        autoUpdater.checkForUpdatesAndNotify();
+        autoUpdater.autoDownload = true;
+        autoUpdater.autoInstallOnAppQuit = true;
+
+        // Función auxiliar para enviar eventos al frontend
+        const sendStatusToWindow = (text, type = 'info', data = null) => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('update-message', { text, type, data });
+            }
+        };
+
+        autoUpdater.on('checking-for-update', () => {
+            sendStatusToWindow('Buscando actualizaciones...', 'checking');
+        });
+
+        autoUpdater.on('update-available', (info) => {
+            sendStatusToWindow('Actualización disponible', 'available', info.version);
+        });
+
+        autoUpdater.on('update-not-available', (info) => {
+            sendStatusToWindow('La aplicación está actualizada', 'not-available');
+        });
+
+        autoUpdater.on('error', (err) => {
+            console.error('AutoUpdater error:', err);
+            sendStatusToWindow('Error al buscar actualizaciones', 'error');
+        });
+
+        autoUpdater.on('download-progress', (progressObj) => {
+            sendStatusToWindow('Descargando actualización...', 'progress', {
+                percent: Math.round(progressObj.percent),
+                transferred: progressObj.transferred,
+                total: progressObj.total
+            });
+        });
 
         autoUpdater.on('update-downloaded', (info) => {
-            console.log('Update downloaded', info);
-            // Opcional: mostrar un mensaje usando Dialog de electron
+            sendStatusToWindow('Actualización lista para instalar', 'downloaded', info.version);
         });
+
+        // Escuchar del frontend la orden de reiniciar
+        ipcMain.on('restart-app', () => {
+            autoUpdater.quitAndInstall();
+        });
+
+        autoUpdater.checkForUpdatesAndNotify();
     } catch (e) {
         console.error('AutoUpdater Error:', e);
     }

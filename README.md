@@ -18,11 +18,13 @@ Sistema integral diseñado para la gestión eficiente de inventario, ventas, deu
 
 ### 🪟 Aplicación de Escritorio (Windows)
 
-**Versión: 1.0.0**
+**Versión: 1.0.0 (Actualizable Vía Nube)**
 
-| Archivo | Descripción | Enlace |
+| Archivo | Descripción | Directorio Local |
 |---------|-------------|--------|
-| `Yeni Trapiche - Gestion Setup.exe` | Instalador para Windows | [Descargar](./backend/dist/) |
+| `yeni-trapiche-gestion Setup 1.x.x.exe` | Instalador Inteligente NSIS (Autoupdate) | `backend/dist-v2/` |
+
+> **Nuevo**: El sistema ahora cuenta con un actualizador automático integrado.
 
 ### 📱 Aplicación Móvil (Android)
 
@@ -85,7 +87,7 @@ El frontend se ejecutará en: `http://localhost:5173`
 cd backend
 npm run electron:build
 ```
-El archivo EXE se generará en: `backend/dist/`
+El archivo EXE se generará en: `backend/dist-v2/`
 
 #### Para Android (APK)
 
@@ -118,7 +120,7 @@ La aplicación utiliza **SQLite** para almacenar datos localmente. Ya no necesit
 | `cd backend && npm install` | Instalar dependencias del backend |
 | `cd frontend && npm install` | Instalar dependencias del frontend |
 | `cd frontend && npm run build` | Compilar el frontend |
-| `npm run build-app.js` | Generar EXE y APK |
+| `npm run release` | Generar Setup Final de Windows y subir automáticamente al reporitorio |
 
 ---
 
@@ -130,13 +132,8 @@ La aplicación utiliza **SQLite** para almacenar datos localmente. Ya no necesit
 3. Limpia la **caché del navegador** (Ctrl+Shift+Delete)
 4. Presiona **F5** para refrescar la página
 
-### Error al generar EXE o APK
-1. Asegúrate de tener **Node.js** instalado
-2. Verifica que las dependencias estén instaladas:
-   ```bash
-   cd backend && npm install
-   cd frontend && npm install
-   ```
+### Error al iniciar sesión en el Ejecutable
+Asegúrate de haber instalado la herramienta correctamente mediante el `Setup.exe` que se encuentra en `dist-v2`. La plataforma incorpora fallbacks de contraseñas seguros por defecto.
 
 ### La base de datos no funciona
 1. Elimina el archivo `backend/database.sqlite`
@@ -146,12 +143,13 @@ La aplicación utiliza **SQLite** para almacenar datos localmente. Ya no necesit
 
 ## 👤 Usuarios del Sistema
 
-La plataforma cuenta con un sistema de autenticación:
+Para realizar testeos y pruebas en computadoras nuevas de forma rápida, se proveen las siguientes credenciales iniciales. *(Se recomienda borrarlas o cambiarlas para producción).*
 
-| Rol | Usuario | Contraseña | Descripción |
-|-----|---------|------------|-------------|
-| **Admin** | `admin` | `admin` | Acceso completo a todas las funcionalidades |
-| **Vendedor** | `user` | `user123` | Puede realizar ventas y añadir productos |
+| Acción / Rol | User / Función | Password / Clave | 
+|-----|---------|------------|
+| **Login de Prueba** | `admin` | `admin` |
+| **Login de Prueba** | `user` | `user123` |
+| **Registro** | Crear nuevo usuario | **Clave Máestra:** `admin123` |
 
 ---
 

@@ -4,5 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electron', {
     printReceipt: (htmlContent) => ipcRenderer.send('print-receipt', htmlContent),
     onPrintSuccess: (callback) => ipcRenderer.on('print-success', callback),
-    onPrintFailure: (callback) => ipcRenderer.on('print-failure', callback)
+    onPrintFailure: (callback) => ipcRenderer.on('print-failure', callback),
+    onUpdateMessage: (callback) => ipcRenderer.on('update-message', callback),
+    restartApp: () => ipcRenderer.send('restart-app')
 });

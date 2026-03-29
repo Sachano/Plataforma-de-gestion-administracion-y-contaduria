@@ -9,6 +9,7 @@
     "start": "node src/index.js",
     "electron": "electron .",
     "electron:build": "electron-builder --win",
+    "release": "electron-builder -p always",
     "build:all": "cd ../frontend && npm run build"
   },
   "keywords": [],
@@ -57,7 +58,7 @@
     "win": {
       "target": [
         {
-          "target": "dir",
+          "target": "nsis",
           "arch": [
             "x64"
           ]

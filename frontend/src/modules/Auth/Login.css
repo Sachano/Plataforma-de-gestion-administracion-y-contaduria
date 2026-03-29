@@ -154,6 +154,10 @@
     transition: all 0.25s ease;
 }
 
+.input-with-icon:has(.toggle-password) input {
+    padding-right: 44px;
+}
+
 .input-with-icon input::placeholder {
     color: rgba(255, 255, 255, 0.3);
 }
@@ -166,6 +170,26 @@
 }
 
 .input-with-icon:focus-within svg {
+    color: #f0a500;
+}
+
+/* ── Toggle visibilidad de contraseña ── */
+.toggle-password {
+    position: absolute;
+    right: 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    z-index: 1;
+}
+
+.toggle-password:hover {
     color: #f0a500;
 }
 

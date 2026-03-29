@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Truck, Plus, Trash2, ClipboardCheck } from 'lucide-react';
+import { secureFetch, API_URL } from '../../utils/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Calcula cuántas unidades mínimas equivalen a (qty) de (presentationIndex)
@@ -154,9 +155,8 @@ const RestockSubmodule = ({ inventory, setInventory }) => {
 
                 const added = toBaseUnits(product.presentations, row.presentationIndex, row.qty);
 
-                return fetch(`http://localhost:3001/api/inventory/${row.productId}/restock`, {
+                return secureFetch(`${API_URL}/inventory/${row.productId}/restock`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         totalBaseUnits: added,
                         cost: 0, // In the future, we can add a cost input to the UI

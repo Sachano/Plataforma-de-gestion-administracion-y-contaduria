@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Trash2, Edit3 } from 'lucide-react';
 import EditProductModal from './EditProductModal';
+import { secureFetch, API_URL } from '../../utils/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Convierte unidades mínimas → cantidad en cada nivel del empaque
@@ -32,7 +33,7 @@ const InventoryViewSubmodule = ({ inventory, setInventory }) => {
         }
 
         try {
-            const res = await fetch(`http://localhost:3001/api/inventory/${id}`, {
+            const res = await secureFetch(`${API_URL}/inventory/${id}`, {
                 method: 'DELETE'
             });
 

@@ -19,7 +19,7 @@ const { debtSchema } = require('../schemas');
 const { deducirStockPorItems } = require('../utils/stockHelper');
 const auth = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
-// const { logAction } = require('../utils/audit'); // Deshabilitado: modo un solo usuario
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET / — Obtener todas las deudas/deudores con su historial de pagos

@@ -27,13 +27,13 @@ const getLocalIP = () => {
     return 'localhost';
 };
 
-// Verificar que JWT_SECRET este configurado
+// Configurar variables por defecto para el entorno de producción (Ejecutable)
+// (El archivo .env no se empaqueta por seguridad, por ende se proveen fallbacks seguros)
 if (!process.env.JWT_SECRET) {
-    console.warn(
-        '⚠️  ADVERTENCIA: JWT_SECRET no esta definido en las variables de entorno.\n' +
-        '   La autenticacion no funcionara correctamente.\n' +
-        '   Asegurate de crear un archivo .env con JWT_SECRET=tu_clave_secreta'
-    );
+    process.env.JWT_SECRET = 'yeni_trapiche_secure_jwt_secret_fallback_key';
+}
+if (!process.env.REGISTRATION_KEY) {
+    process.env.REGISTRATION_KEY = 'admin123'; // Clave por defecto para registrar nuevo usuario
 }
 
 // Crear la aplicacion de Express

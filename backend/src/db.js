@@ -65,102 +65,91 @@ async function getDb() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Núcleo del Traductor (Postgres -> SQLite)
 // ─────────────────────────────────────────────────────────────────────────────
-async function executeQuery(text, originalParams = []) {
-    const db = await getDb();
-
+function translateQuery(text, originalParams = []) {
     let sqliteQuery = text;
-    let flatParams = [];
-    const params = Array.isArray(originalParams) ? [...originalParams] : [];
+    const flatParams = [];
+    const params = Array.isArray(originalParams) ? originalParams : [];
 
-    // 1. Manejar PostgreSQL Arrays y "ANY($x)" (Ej: id = ANY($1))
-    // SQLite no soporta "ANY(array)", necesita "IN (?, ?, ...)"
+    // 1. Manejar PostgreSQL Arrays y "ANY($x)" → SQLite "IN (?, ...)"
     for (let i = 0; i < params.length; i++) {
-        let val = params[i];
-        let pgParamMarker = `\\$${i + 1}`;
-
-        // Expresión regular para encontrar "= ANY($n)" o "ANY ($n)"
-        const anyRegex = new RegExp(`=\\s*ANY\\s*\\(\\s*${pgParamMarker}\\s*\\)`, 'gi');
+        const val = params[i];
+        const anyRegex = new RegExp(`=\\s*ANY\\s*\\(\\s*\\$${i + 1}\\s*\\)`, 'gi');
 
         if (anyRegex.test(sqliteQuery) && Array.isArray(val)) {
-            if (val.length === 0) {
-                // Un IN vacío crashea SQLite. Mentimos pasando IN (NULL) para que no matchee
-                sqliteQuery = sqliteQuery.replace(anyRegex, `IN (NULL)`);
-            } else {
-                const placeholders = val.map(() => '?').join(',');
-                sqliteQuery = sqliteQuery.replace(anyRegex, `IN (${placeholders})`);
-                flatParams.push(...val);
-            }
+            // IN vacío crashea SQLite → usamos IN (NULL) para que no matchee
+            sqliteQuery = sqliteQuery.replace(
+                anyRegex,
+                val.length === 0 ? 'IN (NULL)' : `IN (${val.map(() => '?').join(',')})`
+            );
+            if (val.length > 0) flatParams.push(...val);
         } else {
             flatParams.push(val);
         }
     }
 
-    // 2. Reemplazar todos los "$1", "$2" restantes por "?" para SQLite
-    // Esto convierte de Postgres a SQLite binding parameters.
+    // 2. Reemplazar "$1", "$2" restantes por "?" (formato SQLite)
     sqliteQuery = sqliteQuery.replace(/\$\d+/g, '?');
 
-    // 3. Determinar el método de ejecución (all vs run)
-    // Postgres siempre devuelve 'rows', SQLite usa db.all para SELECT/RETURNING
-    // y db.run para INSERT/UPDATE/DELETE solos.
-    const isSelectOrReturning = sqliteQuery.trim().toUpperCase().startsWith('SELECT') ||
-        sqliteQuery.toUpperCase().includes('RETURNING');
+    return { sqliteQuery, flatParams };
+}
+
+async function executeQuery(text, originalParams = []) {
+    const db = await getDb();
+    const { sqliteQuery, flatParams } = translateQuery(text, originalParams);
+
+    const isReturning = sqliteQuery.toUpperCase().includes('RETURNING');
 
     try {
-        if (isSelectOrReturning) {
+        if (isReturning) {
             const rows = await db.all(sqliteQuery, flatParams);
-            return { rows: rows, rowCount: rows.length };
-        } else {
-            const result = await db.run(sqliteQuery, flatParams);
-            // Result en SQLite tiene "changes" y "lastID"
-            return { rows: [], rowCount: result.changes, lastInsertRowid: result.lastID };
+            return { rows, rowCount: rows.length };
         }
+        const result = await db.run(sqliteQuery, flatParams);
+        return { rows: [], rowCount: result.changes, lastInsertRowid: result.lastID };
     } catch (err) {
-        console.error('❌ SQL Translation Error:', err);
-        console.error(`=> Original: ${text}`);
-        console.error(`=> SQLite:   ${sqliteQuery}`);
-        console.error(`=> Params:   `, flatParams);
+        console.error('❌ SQL Error:', err.message);
+        console.error(`   Original: ${text}`);
+        console.error(`   SQLite:   ${sqliteQuery}`);
+        console.error(`   Params:   `, flatParams);
         throw err;
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Objeto Pool Simulado
-// Engañamos a Express para que crea que somos PostgreSQL
+// Pool Simulado (Compatibilidad PostgreSQL → SQLite)
 // ─────────────────────────────────────────────────────────────────────────────
 const pool = {
-    // Para rutas que usan pool.query()
     query: executeQuery,
 
-    // Para rutas que usan transacciones (pool.connect())
     connect: async () => {
         const db = await getDb();
-        let inTransaction = false;
-
         return {
             query: async (text, params) => {
-                // Manejar transacciones manualmente
-                if (text.trim().toUpperCase() === 'BEGIN') {
-                    inTransaction = true;
+                const trimmed = text.trim().toUpperCase();
+                if (trimmed === 'BEGIN') {
+                    await db.run('BEGIN TRANSACTION');
                     return { rows: [], rowCount: 0 };
                 }
-                if (text.trim().toUpperCase() === 'COMMIT') {
-                    inTransaction = false;
+                if (trimmed === 'COMMIT') {
+                    await db.run('COMMIT');
                     return { rows: [], rowCount: 0 };
                 }
-                if (text.trim().toUpperCase() === 'ROLLBACK') {
-                    inTransaction = false;
+                if (trimmed === 'ROLLBACK') {
+                    await db.run('ROLLBACK');
                     return { rows: [], rowCount: 0 };
                 }
-
                 return executeQuery(text, params);
             },
-            // Las transacciones en SQLite operan en el mismo archivo secuencialmente
-            release: () => { /* No-op */ }
+            release: () => {}
         };
     },
 
     end: async () => {
-        if (dbInstance) await dbInstance.close();
+        if (dbInstance) {
+            await dbInstance.close();
+            dbInstance = null;
+            initPromise = null;
+        }
     }
 };
 

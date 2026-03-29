@@ -63,7 +63,7 @@ const StorageModule = ({ inventory, setInventory }) => {
                 {/* ── Tab content ──────────────────────────── */}
                 <div style={{ padding: activeTab === 'inventory' ? '0' : '28px 30px' }}>
                     {activeTab === 'inventory' && (
-                        <InventoryViewSubmodule inventory={inventory} />
+                        <InventoryViewSubmodule inventory={inventory} setInventory={setInventory} />
                     )}
                     {activeTab === 'restock' && (
                         <RestockSubmodule inventory={inventory} setInventory={setInventory} />

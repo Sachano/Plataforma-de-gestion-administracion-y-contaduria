@@ -10,7 +10,7 @@
 // Nota: La autenticación está deshabilitada temporalmente (modo un solo usuario).
 // ============================================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import MainLayout from './components/MainLayout';
 import StorageModule from './modules/Storage/StorageModule';
 import InvoicingModule from './modules/Invoicing/InvoicingModule';
@@ -22,59 +22,46 @@ import DebtsModule from './modules/Debts/DebtsModule';
 import Login from './modules/Auth/Login';
 
 import { useAuth } from './context/AuthContext';
+import { secureFetch, API_URL } from './utils/api';
 
-// ── URL base del backend ──
-// Cambiar esta constante cuando se despliegue en otro servidor
-const API_URL = 'http://localhost:3001/api';
+// ── Helper: mapear datos de la API al formato del frontend ──
+const mapRateFromAPI = (r) => ({
+  id: r.id,
+  name: r.name,
+  value: parseFloat(r.value),
+  isDeletable: r.is_deletable,
+  isComputed: r.is_computed,
+  group: r.currency_group,
+  customName: r.custom_name
+});
 
 function App() {
   const { user, loading } = useAuth();
   const [activeModule, setActiveModule] = useState('home');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(null);
+
+  // Escuchar eventos del AutoUpdater
+  useEffect(() => {
+    if (window.electron && window.electron.onUpdateMessage) {
+      // El callback recibe el (event, message) del ipcRenderer
+      window.electron.onUpdateMessage((event, message) => {
+        setUpdateStatus(message);
+      });
+    }
+  }, []);
+
+  const handleRestartApp = () => {
+    if (window.electron && window.electron.restartApp) {
+      window.electron.restartApp();
+    }
+  };
 
   // Core application state
   const [inventory, setInventory] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [debts, setDebts] = useState([]);
 
-  // Función auxiliar para hacer peticiones al backend
-  // Agrega automáticamente los headers necesarios (JSON)
-  const secureFetch = (url, options = {}) => {
-    return fetch(url, {
-      ...options,
-      credentials: 'include', // Habilitado para autenticación
-      headers: {
-        ...options.headers,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      }
-    });
-  };
-
-  // ── Cargar datos iniciales al montar el componente ──
-  // Se ejecuta una sola vez al iniciar la aplicación
-  useEffect(() => {
-    // Cargar inventario
-    secureFetch(`${API_URL}/inventory`)
-      .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setInventory(data); else setInventory([]); })
-      .catch(err => console.error('Error cargando inventario:', err));
-
-    // Cargar facturas
-    secureFetch(`${API_URL}/invoices`)
-      .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setInvoices(data); else setInvoices([]); })
-      .catch(err => console.error('Error cargando facturas:', err));
-
-    // Cargar deudas
-    secureFetch(`${API_URL}/debts`)
-      .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setDebts(data); else setDebts([]); })
-      .catch(err => console.error('Error cargando deudas:', err));
-  }, []);
-
-  // ── Estado de tasas de cambio ──
-  // Valores por defecto que se sobreescriben cuando se cargan de la base de datos
   const [exchangeRates, setExchangeRates] = useState([
     { id: 'usd_bcv', name: 'BCV', value: 425.67, isDeletable: false, group: 'usd' },
     { id: 'usd_binance', name: 'Binance', value: 622.11, isDeletable: false, group: 'usd' },
@@ -95,39 +82,35 @@ function App() {
   // Las tasas BCV y Binance se actualizan automáticamente siempre
   const [autoRatesEnabled, setAutoRatesEnabled] = useState(true);
 
-  // ── Cargar tasas de cambio de la base de datos ──
+  // ── Cargar datos iniciales de la base de datos (en paralelo) ──
   useEffect(() => {
-    const cargarTasas = async () => {
+    const fetchJSON = async (endpoint) => {
       try {
-        const res = await secureFetch(`${API_URL}/exchange-rates`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            // Convertir los campos de la DB al formato del frontend
-            const mappedRates = data.map(r => ({
-              id: r.id,
-              name: r.name,
-              value: parseFloat(r.value),
-              isDeletable: r.is_deletable,
-              isComputed: r.is_computed,
-              group: r.currency_group,
-              customName: r.custom_name
-            }));
-            setExchangeRates(mappedRates);
-          }
-        }
+        const res = await secureFetch(`${API_URL}/${endpoint}`);
+        return res.ok ? await res.json() : [];
       } catch (err) {
-        console.error('Error cargando tasas de cambio:', err);
-        // Si falla, se usan los valores por defecto definidos arriba
+        console.error(`Error cargando ${endpoint}:`, err);
+        return [];
       }
     };
-    cargarTasas();
+
+    Promise.all([
+      fetchJSON('exchange-rates'),
+      fetchJSON('inventory'),
+      fetchJSON('invoices'),
+      fetchJSON('debts')
+    ]).then(([ratesData, inventoryData, invoicesData, debtsData]) => {
+      if (Array.isArray(ratesData) && ratesData.length > 0) {
+        setExchangeRates(ratesData.map(mapRateFromAPI));
+      }
+      setInventory(Array.isArray(inventoryData) ? inventoryData : []);
+      setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
+      setDebts(Array.isArray(debtsData) ? debtsData : []);
+    });
   }, []);
 
   // ── Handlers de la API de tasas de cambio ──
-
-  // Agregar una nueva tasa de cambio personalizada
-  const handleAddExchangeRate = async (newRate) => {
+  const handleAddExchangeRate = useCallback(async (newRate) => {
     try {
       const res = await secureFetch(`${API_URL}/exchange-rates`, {
         method: 'POST',
@@ -142,24 +125,14 @@ function App() {
       });
       if (!res.ok) throw new Error('Error al crear la equivalencia');
       const created = await res.json();
-      // Agregar la tasa recién creada al estado
-      setExchangeRates(prev => [...prev, {
-        id: created.id,
-        name: created.name,
-        value: parseFloat(created.value),
-        isDeletable: created.is_deletable,
-        isComputed: created.is_computed,
-        group: created.currency_group,
-        customName: created.custom_name
-      }]);
+      setExchangeRates(prev => [...prev, mapRateFromAPI(created)]);
     } catch (err) {
       console.error(err);
       alert('Error al crear la equivalencia: ' + err.message);
     }
-  };
+  }, []);
 
-  // Actualizar una tasa de cambio existente
-  const handleUpdateExchangeRate = async (id, updates) => {
+  const handleUpdateExchangeRate = useCallback(async (id, updates) => {
     try {
       const res = await secureFetch(`${API_URL}/exchange-rates/${id}`, {
         method: 'PUT',
@@ -167,39 +140,31 @@ function App() {
       });
       if (!res.ok) throw new Error('Error al actualizar la equivalencia');
       const updated = await res.json();
-      setExchangeRates(prev => prev.map(r => {
-        if (r.id !== id) return r;
-        return {
-          ...r,
-          name: updated.name,
-          value: parseFloat(updated.value),
-          customName: updated.custom_name
-        };
+      setExchangeRates(prev => prev.map(r => r.id !== id ? r : {
+        ...r,
+        name: updated.name,
+        value: parseFloat(updated.value),
+        customName: updated.custom_name
       }));
     } catch (err) {
       console.error(err);
       alert('Error al actualizar la equivalencia: ' + err.message);
     }
-  };
+  }, []);
 
-  // Eliminar una tasa de cambio personalizada
-  const handleDeleteExchangeRate = async (id) => {
+  const handleDeleteExchangeRate = useCallback(async (id) => {
     try {
-      const res = await secureFetch(`${API_URL}/exchange-rates/${id}`, {
-        method: 'DELETE'
-      });
+      const res = await secureFetch(`${API_URL}/exchange-rates/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Error al eliminar la equivalencia');
       setExchangeRates(prev => prev.filter(r => r.id !== id));
     } catch (err) {
       console.error(err);
       alert('Error al eliminar la equivalencia: ' + err.message);
     }
-  };
+  }, []);
 
-  // Guardar todas las tasas de cambio de una vez (actualización masiva)
-  const handleSaveAllExchangeRates = async (rates) => {
+  const handleSaveAllExchangeRates = useCallback(async (rates) => {
     try {
-      // Filtrar la tasa "Promedio" porque se calcula en el frontend, no se guarda
       const ratesToSave = rates.filter(r => r.id !== 'usd_promedio');
       const res = await secureFetch(`${API_URL}/exchange-rates`, {
         method: 'PUT',
@@ -207,26 +172,14 @@ function App() {
       });
       if (!res.ok) throw new Error('Error al guardar las equivalencias');
       const saved = await res.json();
-
-      // Convertir los datos guardados al formato del frontend
-      const savedRates = saved.map(r => ({
-        id: r.id,
-        name: r.name,
-        value: parseFloat(r.value),
-        isDeletable: r.is_deletable,
-        isComputed: r.is_computed,
-        group: r.currency_group,
-        customName: r.custom_name
-      }));
-
-      // Mantener las tasas calculadas (Promedio) que no se guardan en DB
+      const savedRates = saved.map(mapRateFromAPI);
       const computedRates = rates.filter(r => r.id === 'usd_promedio');
       setExchangeRates([...savedRates, ...computedRates]);
     } catch (err) {
       console.error(err);
       alert('Error al guardar las equivalencias: ' + err.message);
     }
-  };
+  }, []);
 
   // ── Actualización automática de tasas en vivo ──
   // Cuando autoRatesEnabled está activado, busca tasas cada 30 minutos
@@ -264,9 +217,7 @@ function App() {
     setIsCartOpen(false);
   };
 
-  const toggleCart = () => {
-    setIsCartOpen(!isCartOpen);
-  };
+  const toggleCart = () => setIsCartOpen(prev => !prev);
 
   // Verificar autenticación antes de renderizar
   if (loading) {
@@ -356,92 +307,132 @@ function App() {
     }
   };
 
+  // ── Handler del checkout del carrito ──
+  const handleCheckout = async (invoice, debtInfo) => {
+    try {
+      if (debtInfo) {
+        const { debtorId, isNew, newDebtor } = debtInfo;
+        const payload = {
+          id: invoice.id,
+          total_usd: invoice.total,
+          items: invoice.items,
+          debtorId: isNew ? undefined : parseInt(debtorId),
+          newDebtorName: isNew ? newDebtor.name : undefined
+        };
+
+        const res = await secureFetch(`${API_URL}/debts/invoice`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Error guardando la deuda');
+
+        if (isNew) {
+          const data = await res.json();
+          setDebts(prev => [...prev, {
+            id: data.debtorId,
+            type: 'deudor',
+            name: newDebtor.name,
+            description: newDebtor.description || '',
+            amount: invoice.total,
+            history: [{ amount: invoice.total }]
+          }]);
+        } else {
+          setDebts(prev => prev.map(d => {
+            if (d.id !== parseInt(debtorId)) return d;
+            return {
+              ...d,
+              amount: Number(d.amount) + Number(invoice.total),
+              history: d.history ? [...d.history, { amount: invoice.total }] : [{ amount: invoice.total }]
+            };
+          }));
+        }
+      } else {
+        const res = await secureFetch(`${API_URL}/invoices`, {
+          method: 'POST',
+          body: JSON.stringify({ id: invoice.id, total_usd: invoice.total, items: invoice.items })
+        });
+        if (!res.ok) throw new Error('Error guardando la factura');
+        setInvoices(prev => [...prev, invoice]);
+      }
+
+      // Recargar inventario después de la venta
+      const invRes = await secureFetch(`${API_URL}/inventory`);
+      if (invRes.ok) setInventory(await invRes.json());
+
+      setIsCartOpen(false);
+      alert(debtInfo ? '✅ Deuda registrada con éxito' : '✅ Factura generada con éxito. ¡Venta completada!');
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
+
 
   return (
-    <MainLayout
-      activeModule={activeModule}
-      onModuleChange={handleModuleChange}
-      onCartToggle={toggleCart}
-      user={user}
-    >
+    <>
+      {updateStatus && updateStatus.type !== 'not-available' && updateStatus.type !== 'checking' && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: updateStatus.type === 'error' ? '#f44336' : (updateStatus.type === 'downloaded' ? '#4caf50' : '#ff9800'),
+          color: 'white',
+          textAlign: 'center',
+          padding: '10px',
+          zIndex: 10000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '15px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+        }}>
+          <span style={{ fontWeight: '500' }}>{updateStatus.text}</span>
+          {updateStatus.type === 'progress' && updateStatus.data && (
+            <div style={{ width: '200px', backgroundColor: 'rgba(255,255,255,0.3)', height: '10px', borderRadius: '5px', overflow: 'hidden' }}>
+              <div style={{ width: `${updateStatus.data.percent}%`, backgroundColor: 'white', height: '100%', transition: 'width 0.2s' }}></div>
+            </div>
+          )}
+          {updateStatus.type === 'downloaded' && (
+            <button 
+              onClick={handleRestartApp}
+              style={{
+                backgroundColor: 'white',
+                color: '#4caf50',
+                border: 'none',
+                padding: '6px 16px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+            >
+              Reiniciar Ahora
+            </button>
+          )}
+          {updateStatus.type === 'error' && (
+            <button 
+              onClick={() => setUpdateStatus(null)}
+              style={{ backgroundColor: 'transparent', border: '1px solid white', color: 'white', cursor: 'pointer', padding: '4px 10px', borderRadius: '4px' }}
+            >
+              Cerrar
+            </button>
+          )}
+        </div>
+      )}
+      <MainLayout
+        activeModule={activeModule}
+        onModuleChange={handleModuleChange}
+        onCartToggle={toggleCart}
+        user={user}
+      >
       {isCartOpen ? (
         <CartModule
           inventory={inventory}
           exchangeRates={exchangeRatesWithPromedio}
           debts={debts}
           setDebts={setDebts}
-          onCheckout={async (invoice, debtInfo) => {
-            try {
-              if (debtInfo) {
-                const { debtorId, isNew, newDebtor } = debtInfo;
-                const payload = {
-                  id: invoice.id,
-                  total_usd: invoice.total,
-                  items: invoice.items,
-                  debtorId: isNew ? undefined : parseInt(debtorId),
-                  newDebtorName: isNew ? newDebtor.name : undefined
-                };
-
-                const res = await secureFetch(`${API_URL}/debts/invoice`, {
-                  method: 'POST',
-                  body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error('Error guardando la deuda');
-
-                if (isNew) {
-                  const data = await res.json();
-                  const newDbId = data.debtorId;
-                  setDebts(prev => [...prev, {
-                    id: newDbId,
-                    type: 'deudor',
-                    name: newDebtor.name,
-                    description: newDebtor.description || '',
-                    amount: invoice.total,
-                    history: [{ amount: invoice.total }]
-                  }]);
-                } else {
-                  setDebts(prev => prev.map(d => {
-                    if (d.id !== parseInt(debtorId)) return d;
-                    return {
-                      ...d,
-                      amount: Number(d.amount) + Number(invoice.total),
-                      history: d.history ? [...d.history, { amount: invoice.total }] : [{ amount: invoice.total }]
-                    };
-                  }));
-                }
-              } else {
-                // Venta normal (sin deudor)
-                const payload = {
-                  id: invoice.id,
-                  total_usd: invoice.total,
-                  items: invoice.items
-                };
-
-                const res = await secureFetch(`${API_URL}/invoices`, {
-                  method: 'POST',
-                  body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error('Error guardando la factura');
-
-                setInvoices([...invoices, invoice]);
-              }
-
-              // Recargar inventario actualizado después de la venta
-              const invRes = await secureFetch(`${API_URL}/inventory`);
-              if (invRes.ok) {
-                const updatedInventory = await invRes.json();
-                setInventory(updatedInventory);
-              }
-
-              setIsCartOpen(false);
-              alert(debtInfo ? '✅ Deuda registrada con éxito' : '✅ Factura generada con éxito. ¡Venta completada!');
-            } catch (err) {
-              console.error(err);
-              alert(err.message);
-            }
-          }}
+          onCheckout={handleCheckout}
           onClose={() => setIsCartOpen(false)}
         />
       ) : (
@@ -483,6 +474,7 @@ function App() {
         </>
       )}
     </MainLayout>
+    </>
   );
 }
 

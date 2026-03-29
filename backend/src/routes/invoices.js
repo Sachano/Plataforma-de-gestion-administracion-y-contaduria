@@ -15,7 +15,7 @@ const pool = require('../db');
 const { deducirStockPorItems } = require('../utils/stockHelper');
 const auth = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
-// const { logAction } = require('../utils/audit'); // Deshabilitado: modo un solo usuario
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET / — Obtener todas las facturas con sus items

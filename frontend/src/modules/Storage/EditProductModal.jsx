@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Plus, Trash2 } from 'lucide-react';
+import { secureFetch, API_URL } from '../../utils/api';
 
 const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
     const [formData, setFormData] = useState({ name: '', brand: '', barcode: '' });
@@ -68,9 +69,8 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
 
         setIsSaving(true);
         try {
-            const res = await fetch(`http://localhost:3001/api/inventory/${product.id}`, {
+            const res = await secureFetch(`${API_URL}/inventory/${product.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedProductData)
             });
 

@@ -32,23 +32,28 @@ router.get('/', auth, async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM exchange_rates');
 
-        // Si no hay tasas guardadas, crear las por defecto
         if (result.rows.length === 0) {
-            const tasasPorDefecto = [
-                { id: 'usd_bcv', name: 'BCV', value: 425.67, isDeletable: false, isComputed: false, currencyGroup: 'usd' },
-                { id: 'usd_binance', name: 'Binance', value: 622.11, isDeletable: false, isComputed: false, currencyGroup: 'usd' },
-                { id: 'cop', name: 'Pesos Colombianos', value: 6, isDeletable: false, isComputed: false, currencyGroup: 'cop' }
-            ];
-
-            for (const tasa of tasasPorDefecto) {
-                await pool.query(
-                    `INSERT INTO exchange_rates (id, name, value, is_deletable, is_computed, currency_group)
-                     VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [tasa.id, tasa.name, tasa.value, tasa.isDeletable, tasa.isComputed, tasa.currencyGroup]
-                );
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+                const defaults = [
+                    ['usd_bcv', 'BCV', 425.67, false, false, 'usd'],
+                    ['usd_binance', 'Binance', 622.11, false, false, 'usd'],
+                    ['cop', 'Pesos Colombianos', 6, false, false, 'cop']
+                ];
+                for (const [id, name, value, isDel, isComp, group] of defaults) {
+                    await client.query(
+                        `INSERT INTO exchange_rates (id, name, value, is_deletable, is_computed, currency_group) VALUES ($1, $2, $3, $4, $5, $6)`,
+                        [id, name, value, isDel, isComp, group]
+                    );
+                }
+                await client.query('COMMIT');
+            } catch (e) {
+                await client.query('ROLLBACK');
+                throw e;
+            } finally {
+                client.release();
             }
-
-            // Volver a consultar para devolver las recién creadas
             const freshResult = await pool.query('SELECT * FROM exchange_rates');
             return res.json(freshResult.rows);
         }
@@ -73,102 +78,86 @@ router.get('/', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/live', auth, async (req, res) => {
     try {
-        let bcvRate;
+        // Ejecutar BCV y Binance en paralelo para reducir latencia
+        const [bcvResult, binanceResult] = await Promise.allSettled([
+            fetchBCVRate(),
+            fetchBinanceRate()
+        ]);
 
-        // ── Intento 1: Raspar directamente del sitio del BCV ──
-        try {
-            const agent = new https.Agent({ rejectUnauthorized: false });
-            const bcvResp = await axios.get('https://www.bcv.org.ve/', {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
-                    'Accept': 'text/html',
-                    'Accept-Language': 'es-VE,es;q=0.9'
-                },
-                httpsAgent: agent,
-                timeout: 8000
-            });
+        const bcvRate = bcvResult.status === 'fulfilled' ? bcvResult.value : null;
+        const binanceRate = binanceResult.status === 'fulfilled' ? binanceResult.value : null;
 
-            // Usar cheerio para extraer el valor del dólar del HTML
-            const $ = cheerio.load(bcvResp.data);
-            const usdText = $('#dolar strong').first().text().trim();
-            // El BCV usa formato venezolano: "52.345,67" → convertir a número
-            const parsed = parseFloat(usdText.replace('.', '').replace(',', '.'));
-
-            if (!isNaN(parsed) && parsed > 1) {
-                bcvRate = parsed;
-            }
-        } catch (bcvErr) {
-            console.warn('[BCV] Scraping directo falló, usando respaldo dolarapi...', bcvErr.message);
+        if (!bcvRate || !binanceRate) {
+            const errors = [];
+            if (bcvResult.status === 'rejected') errors.push(`BCV: ${bcvResult.reason?.message}`);
+            if (binanceResult.status === 'rejected') errors.push(`Binance: ${binanceResult.reason?.message}`);
+            throw new Error(errors.join('; ') || 'No se pudieron obtener las tasas');
         }
 
-        // ── Intento 2: Respaldo con dolarapi.com si el scraping falló ──
-        if (!bcvRate) {
-            const fallbackResp = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', {
-                headers: { 'Accept': 'application/json' },
-                signal: AbortSignal.timeout(5000)
-            });
-
-            if (!fallbackResp.ok) {
-                throw new Error('Tanto el BCV como la API de respaldo fallaron');
-            }
-
-            const fallbackData = await fallbackResp.json();
-            bcvRate = fallbackData.promedio;
-        }
-
-        // ── Obtener tasa de Binance P2P ──
-        // Busca las 5 mejores ofertas de VENTA de USDT por bolívares
-        // y promedia sus precios para obtener una tasa estable
-        const binanceResponse = await fetch('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({
-                fiat: 'VES',
-                page: 1,
-                rows: 5,
-                tradeType: 'SELL',
-                asset: 'USDT',
-                countries: [],
-                proMerchantAds: false,
-                shieldMerchantAds: false,
-                filterType: 'all',
-                periods: [],
-                additionalKycVerifyFilter: 0,
-                publisherType: null,
-                payTypes: [],
-                classifies: ['mass', 'profession', 'fiat_merchant']
-            }),
-            signal: AbortSignal.timeout(7000)
-        });
-
-        if (!binanceResponse.ok) {
-            throw new Error(`Error de la API de Binance P2P: ${binanceResponse.status}`);
-        }
-
-        const binanceData = await binanceResponse.json();
-
-        // Extraer los precios y calcular el promedio
-        const prices = binanceData.data
-            .map(item => parseFloat(item.adv.price))
-            .filter(p => !isNaN(p));
-
-        if (prices.length === 0) {
-            throw new Error('No se obtuvieron precios de Binance P2P');
-        }
-
-        const binanceRate = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-
-        // Devolver ambas tasas
-        res.json({
-            bcv: bcvRate,
-            binance: parseFloat(binanceRate.toFixed(2))
-        });
-
+        res.json({ bcv: bcvRate, binance: parseFloat(binanceRate.toFixed(2)) });
     } catch (err) {
         console.error('Error obteniendo tasas en vivo:', err);
         res.status(500).json({ error: 'Error al obtener tasas de cambio en vivo', details: err.message });
     }
 });
+
+// ── Helpers para obtener tasas en paralelo ──
+async function fetchBCVRate() {
+    try {
+        const agent = new https.Agent({ rejectUnauthorized: false });
+        const bcvResp = await axios.get('https://www.bcv.org.ve/', {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+                'Accept': 'text/html',
+                'Accept-Language': 'es-VE,es;q=0.9'
+            },
+            httpsAgent: agent,
+            timeout: 8000
+        });
+
+        const $ = cheerio.load(bcvResp.data);
+        const usdText = $('#dolar strong').first().text().trim();
+        const parsed = parseFloat(usdText.replace('.', '').replace(',', '.'));
+
+        if (!isNaN(parsed) && parsed > 1) return parsed;
+    } catch (bcvErr) {
+        console.warn('[BCV] Scraping directo falló, usando respaldo dolarapi...', bcvErr.message);
+    }
+
+    // Fallback: dolarapi.com
+    const fallbackResp = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(5000)
+    });
+    if (!fallbackResp.ok) throw new Error('API de respaldo falló');
+    const fallbackData = await fallbackResp.json();
+    return fallbackData.promedio;
+}
+
+async function fetchBinanceRate() {
+    const binanceResponse = await fetch('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+            fiat: 'VES', page: 1, rows: 5, tradeType: 'SELL', asset: 'USDT',
+            countries: [], proMerchantAds: false, shieldMerchantAds: false,
+            filterType: 'all', periods: [], additionalKycVerifyFilter: 0,
+            publisherType: null, payTypes: [],
+            classifies: ['mass', 'profession', 'fiat_merchant']
+        }),
+        signal: AbortSignal.timeout(7000)
+    });
+
+    if (!binanceResponse.ok) throw new Error(`Binance P2P: ${binanceResponse.status}`);
+
+    const binanceData = await binanceResponse.json();
+    const prices = binanceData.data
+        .map(item => parseFloat(item.adv.price))
+        .filter(p => !isNaN(p));
+
+    if (prices.length === 0) throw new Error('Sin precios de Binance P2P');
+    return prices.reduce((sum, p) => sum + p, 0) / prices.length;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST / — Crear una nueva tasa de cambio personalizada
@@ -277,6 +266,7 @@ router.delete('/:id', auth, checkRole(['admin']), async (req, res) => {
 // Usa ON CONFLICT para hacer "upsert" (insertar si no existe, actualizar si sí).
 // ─────────────────────────────────────────────────────────────────────────────
 router.put('/', auth, checkRole(['admin']), async (req, res) => {
+    const client = await pool.connect();
     try {
         const { rates } = req.body;
 
@@ -284,13 +274,12 @@ router.put('/', auth, checkRole(['admin']), async (req, res) => {
             return res.status(400).json({ error: 'El campo "rates" debe ser un array' });
         }
 
+        await client.query('BEGIN');
         const results = [];
 
         for (const rate of rates) {
             const { id, name, value, isDeletable, isComputed, currencyGroup, customName } = rate;
-
-            // Upsert: si el ID ya existe, actualiza; si no, inserta
-            const result = await pool.query(
+            const result = await client.query(
                 `INSERT INTO exchange_rates (id, name, value, is_deletable, is_computed, currency_group, custom_name)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
                  ON CONFLICT (id) DO UPDATE SET
@@ -298,23 +287,19 @@ router.put('/', auth, checkRole(['admin']), async (req, res) => {
                     value = EXCLUDED.value,
                     custom_name = EXCLUDED.custom_name
                  RETURNING *`,
-                [
-                    id,
-                    name,
-                    parseFloat(value) || 0,
-                    isDeletable !== false,
-                    isComputed === true,
-                    currencyGroup || 'custom',
-                    customName || null
-                ]
+                [id, name, parseFloat(value) || 0, isDeletable !== false, isComputed === true, currencyGroup || 'custom', customName || null]
             );
             results.push(result.rows[0]);
         }
 
+        await client.query('COMMIT');
         res.json(results);
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error('Error en actualización masiva de tasas:', err);
         res.status(500).json({ error: 'Error del servidor en actualización masiva de tasas' });
+    } finally {
+        client.release();
     }
 });
 

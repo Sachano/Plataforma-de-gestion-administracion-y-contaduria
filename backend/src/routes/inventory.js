@@ -18,8 +18,6 @@ const validate = require('../middleware/validate');
 const { productSchema } = require('../schemas');
 const auth = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
-const { logAction } = require('../utils/audit');
-
 // ─────────────────────────────────────────────────────────────────────────────
 // GET / — Obtener todos los productos del inventario
 // ─────────────────────────────────────────────────────────────────────────────

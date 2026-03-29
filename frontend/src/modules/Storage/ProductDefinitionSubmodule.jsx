@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Trash2, Save, PackagePlus, ChevronRight } from 'lucide-react';
 import BarcodeScanner from '../../components/BarcodeScanner';
+import { secureFetch, API_URL } from '../../utils/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-componente: fila de un nivel de empaque
@@ -144,9 +145,8 @@ const ProductDefinitionSubmodule = ({ inventory, setInventory }) => {
         };
 
         try {
-            const res = await fetch('http://localhost:3001/api/inventory', {
+            const res = await secureFetch(`${API_URL}/inventory`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newProduct)
             });
 
